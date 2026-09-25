@@ -13,39 +13,36 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Unzip project file
-      run: |
-        if [ -f "friendhub (1).zip" ]; then
-          unzip -o "friendhub (1).zip" -d extracted_app
-          cp -r extracted_app/* . || true
-        fi
-
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: gradle
 
-    - name: Grant execute permission for gradlew
-      run: |
-        if [ -f "gradlew" ]; then
-          chmod +x gradlew
-        fi
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
 
-    - name: Build AAB
+    - name: Unzip and Prepare Project
       run: |
-        if [ -f "gradlew" ]; then
-          ./gradlew bundleRelease --continue
-        else
-          echo "Gradle wrapper not found, building with gradle..."
-          gradle bundleRelease --continue
+        if [ -f "friendhub (1).zip" ]; then
+          unzip -o "friendhub (1).zip" -d extracted
+          # Move files if nested inside a folder
+          if [ -d extracted/friendhub* ]; then
+            cp -r extracted/friendhub*/* . || true
+          else
+            cp -r extracted/* . || true
+          fi
         fi
+        # Install gradle wrapper if missing
+        gradle wrapper
+
+    - name: Build Release Bundle (AAB)
+      run: ./gradlew bundleRelease --stacktrace
 
     - name: Upload AAB Artifact
       uses: actions/upload-artifact@v4
       with:
         name: app-release-aab
         path: |
-          **/build/outputs/bundle/release/*.aab
           app/build/outputs/bundle/release/*.aab
+          **/build/outputs/bundle/release/*.aab
