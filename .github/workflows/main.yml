@@ -1,4 +1,4 @@
-name: Build Android AAB from Zip
+name: Build Android AAB
 
 on:
   push:
@@ -19,24 +19,30 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
-
-    - name: Unzip and Prepare Project
+    - name: Extract Zip File
       run: |
-        if [ -f "friendhub (1).zip" ]; then
-          unzip -o "friendhub (1).zip" -d extracted
-          # Move files if nested inside a folder
-          if [ -d extracted/friendhub* ]; then
-            cp -r extracted/friendhub*/* . || true
-          else
-            cp -r extracted/* . || true
+        echo "Extracting zip files..."
+        for f in *.zip; do
+          if [ -f "$f" ]; then
+            echo "Unzipping $f"
+            unzip -o "$f"
           fi
+        done
+        
+        # Move files up if zip extracted into a subfolder
+        if [ -d "friendhub" ]; then
+          cp -rn friendhub/* . || true
         fi
-        # Install gradle wrapper if missing
-        gradle wrapper
+        if [ -d "friendhub (1)" ]; then
+          cp -rn "friendhub (1)"/* . || true
+        fi
 
-    - name: Build Release Bundle (AAB)
+    - name: Ensure Gradlew Executable
+      run: |
+        gradle wrapper
+        chmod +x gradlew
+
+    - name: Build AAB
       run: ./gradlew bundleRelease --stacktrace
 
     - name: Upload AAB Artifact
