@@ -19,30 +19,35 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Extract Zip File
+    - name: Extract Zip File and Move Files
       run: |
-        echo "Extracting zip files..."
-        for f in *.zip; do
-          if [ -f "$f" ]; then
-            echo "Unzipping $f"
-            unzip -o "$f"
+        echo "Searching for zip file..."
+        ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
+        if [ -n "$ZIP_FILE" ]; then
+          echo "Extracting $ZIP_FILE..."
+          unzip -o "$ZIP_FILE" -d temp_extracted
+          
+          # Find directory containing settings.gradle or build.gradle
+          PROJ_DIR=$(find temp_extracted -name "settings.gradle.kts" -o -name "settings.gradle" | head -n 1 | xargs dirname)
+          
+          if [ -n "$PROJ_DIR" ]; then
+            echo "Moving files from $PROJ_DIR to root..."
+            cp -r "$PROJ_DIR"/* .
+          else
+            echo "Moving all extracted files to root..."
+            cp -r temp_extracted/* .
           fi
-        done
-        
-        # Move files up if zip extracted into a subfolder
-        if [ -d "friendhub" ]; then
-          cp -rn friendhub/* . || true
-        fi
-        if [ -d "friendhub (1)" ]; then
-          cp -rn "friendhub (1)"/* . || true
+          rm -rf temp_extracted
         fi
 
     - name: Ensure Gradlew Executable
       run: |
-        gradle wrapper
+        if [ ! -f "gradlew" ]; then
+          gradle wrapper
+        fi
         chmod +x gradlew
 
-    - name: Build AAB
+    - name: Build Release AAB
       run: ./gradlew bundleRelease --stacktrace
 
     - name: Upload AAB Artifact
